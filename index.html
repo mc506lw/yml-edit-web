@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>YML Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/3.14.0/js-yaml.min.js"></script>
+    <style>
+      body::after {
+          content: "";
+          background: url('background.jpg') no-repeat center center fixed;
+          background-size: cover;
+          filter: blur(2px);
+          z-index: -1;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+      }
+
+      #themeButton:hover {
+        background-color: #a5a5a5;
+        border-color: #a5a5a5;
+      }
+
+      .item {
+          background-color: white;
+          padding: 10px;
+          margin: 10px 0;
+          border-radius: 5px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+          transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+      }
+
+      .item:hover {
+          box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+      }
+
+      .collapse {
+          display: none;
+      }
+
+      #fileInput, #saveButton {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px 2px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            background-color: #ababab;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #fileInput:hover, #saveButton:hover {
+            background-color: #a5a5a5aa;
+        }
+
+  </style>
+</head>
+<body>
+    <input type="file" id="fileInput">
+    <button id="saveButton">保存</button>
+    <div id="content"></div>
+
+    <button id="themeButton" style="position: fixed; right: 10px; bottom: 10px; z-index: 9999; padding: 10px 20px; font-size: 16px; border: 2px solid #ababab; border-radius: 5px; color: white; background-color: #ababab; cursor: pointer; transition: background-color 0.3s;">切换主题</button>
+
+
+
+    <script>
+
+    // 获取按钮元素
+    var themeButton = document.getElementById('themeButton');
+
+    // 检查用户的系统设置
+    var isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    // 根据系统设置初始化页面主题
+    setTheme(isDarkMode);
+
+    // 为按钮添加点击事件
+    themeButton.addEventListener('click', function() {
+        // 切换主题
+        isDarkMode = !isDarkMode;
+        setTheme(isDarkMode);
+    });
+
+    // 监听系统主题设置的改变
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        // 更新主题
+        isDarkMode = e.matches;
+        setTheme(isDarkMode);
+    });
+
+    function setTheme(isDarkMode) {
+        var backgroundColor = isDarkMode ? 'gray' : 'white';
+        var color = isDarkMode ? 'black' : 'black';
+        document.body.style.backgroundColor = backgroundColor;
+        document.body.style.color = color;
+
+        // 修改所有元素的背景颜色
+        var elements = document.body.getElementsByTagName('*');
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].style.backgroundColor = backgroundColor;
+            elements[i].style.color = color;
+        }
+    }
+
+    function createInputs(data, parentElement) {
+    for (var key in data) {
+        if (data.hasOwnProperty(key)) {
+            var div = document.createElement('div');
+            div.className = 'item';
+            var label = document.createElement('label');
+            label.textContent = key;
+            div.appendChild(label);
+            if (typeof data[key] === 'object') {
+                var button = document.createElement('button');
+                button.textContent = '展开/折叠';
+                button.addEventListener('click', function() {
+                    var childDiv = this.nextSibling;
+                    childDiv.style.display = childDiv.style.display === 'none' ? 'block' : 'none';
+                });
+                div.appendChild(button);
+                var childDiv = document.createElement('div');
+                childDiv.style.display = 'none';
+                createInputs(data[key], childDiv);
+                div.appendChild(childDiv);
+            } else {
+                if (typeof data[key] === 'boolean') {
+                    var trueButton = document.createElement('button');
+                    trueButton.textContent = 'True';
+                    trueButton.style.backgroundColor = data[key] ? 'lightgreen' : '';
+                    trueButton.addEventListener('click', function() {
+                        this.style.backgroundColor = 'lightgreen';
+                        this.nextSibling.style.backgroundColor = '';
+                        this.nextSibling.nextSibling.textContent = '当前: true';
+                    });
+                    div.appendChild(trueButton);
+
+                    var falseButton = document.createElement('button');
+                    falseButton.textContent = 'False';
+                    falseButton.style.backgroundColor = !data[key] ? 'lightgreen' : '';
+                    falseButton.addEventListener('click', function() {
+                        this.style.backgroundColor = 'lightgreen';
+                        this.previousSibling.style.backgroundColor = '';
+                        this.nextSibling.textContent = '当前: false';
+                    });
+                    div.appendChild(falseButton);
+
+                    var valueText = document.createElement('span');
+                    valueText.textContent = '当前: ' + data[key];
+                    div.appendChild(valueText);
+                  } else if (typeof data[key] === 'number' && data[key] < 20) {
+                    var numberInput = document.createElement('input');
+                    numberInput.type = 'number';
+                    numberInput.value = data[key];
+                    numberInput.min = 0;  // 设置最小值
+                    numberInput.max = 20;  // 设置最大值
+                    div.appendChild(numberInput);
+
+                    var input = document.createElement('input');
+                    input.type = 'range';
+                    input.value = data[key];
+                    input.min = 0;  // 设置最小值
+                    input.max = 20;  // 设置最大值
+                    input.addEventListener('input', function() {
+                        numberInput.value = this.value;
+                    });
+                    div.appendChild(input);
+                } else {
+                    var input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = data[key];
+                    div.appendChild(input);
+                }
+            }
+            parentElement.appendChild(div);
+        }
+    }
+    // 更新主题
+    setTheme(isDarkMode);
+}
+
+  
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) {
+            console.log('No file selected');
+            return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var contents = e.target.result;
+            var data = jsyaml.load(contents);
+            document.getElementById('content').innerHTML = '';
+            createInputs(data, document.getElementById('content'));
+        };
+        reader.readAsText(file);
+    }, false);
+
+    function saveData(item, data) {
+    var key = item.querySelector('label').textContent;
+    var value;
+
+    // 检查是否有布尔值按钮
+    var trueButton = item.querySelector('button.true');
+    var falseButton = item.querySelector('button.false');
+    if (trueButton && falseButton) {
+        value = trueButton.classList.contains('active'); // 假设 'active' 类表示按钮被激活
+    } else {
+        // 检查是否有数字输入
+        var numberInput = item.querySelector('input[type="number"]');
+        if (numberInput) {
+            value = Number(numberInput.value);
+        } else {
+            // 检查是否有文本输入
+            var textInput = item.querySelector('input[type="text"]');
+            if (textInput) {
+                value = textInput.value;
+            } else {
+                // 检查是否有嵌套对象
+                var childDiv = item.querySelector('div');
+                if (childDiv) {
+                    value = {};
+                    var childItems = childDiv.querySelectorAll('.item');
+                    childItems.forEach(function(childItem) {
+                        saveData(childItem, value);
+                    });
+                }
+            }
+        }
+    }
+    if (key) data[key] = value;
+}
+
+document.getElementById('saveButton').addEventListener('click', function() {
+    var data = {};
+    var items = document.querySelectorAll('#content > .item');
+    items.forEach(function(item) {
+        saveData(item, data);
+    });
+    var yaml = jsyaml.dump(data, { 'noRefs': true, 'noCompatMode': true });
+    var blob = new Blob([yaml], {type: "text/plain;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'output.yml';
+    link.click();
+    setTimeout(function() {
+        URL.revokeObjectURL(url); // 释放内存
+    }, 100);
+});
+
+    </script>
+</body>
+</html>
